@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveU-Style App — Detailed Control Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e12;
+    --bg2: #16161d;
+    --bg3: #1e1e28;
+    --border: rgba(255,255,255,0.07);
+    --muted: #5a5a72;
+    --text: #e8e8f0;
+    --text2: #9898b0;
+
+    --cust: #3b8ef0;
+    --cust-dim: rgba(59,142,240,0.12);
+    --cust-mid: rgba(59,142,240,0.25);
+
+    --driv: #2ec4a0;
+    --driv-dim: rgba(46,196,160,0.12);
+    --driv-mid: rgba(46,196,160,0.25);
+
+    --adm: #b06ef5;
+    --adm-dim: rgba(176,110,245,0.12);
+    --adm-mid: rgba(176,110,245,0.25);
+
+    --warn: #f5a623;
+    --danger: #f05050;
+    --success: #2ec47a;
+    --info: #60b8f5;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 32px 48px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .logo span { color: var(--warn); }
+  .subtitle {
+    color: var(--text2);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin: 0 -48px;
+    padding: 0 48px;
+  }
+  .tab {
+    padding: 12px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active-cust { color: var(--cust); border-bottom-color: var(--cust); }
+  .tab.active-driv { color: var(--driv); border-bottom-color: var(--driv); }
+  .tab.active-adm  { color: var(--adm);  border-bottom-color: var(--adm);  }
+
+  /* ── PANELS ── */
+  .panel { display: none; padding: 40px 48px 80px; max-width: 900px; }
+  .panel.active { display: block; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 40px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── FLOW STEPS ── */
+  .flow {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 0 16px;
+    margin-bottom: 0;
+  }
+
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 0;
+    background: var(--bg);
+    position: relative;
+    z-index: 1;
+  }
+  .step-num.cust { color: var(--cust); border-color: var(--cust); }
+  .step-num.driv { color: var(--driv); border-color: var(--driv); }
+  .step-num.adm  { color: var(--adm);  border-color: var(--adm);  }
+
+  .step-line {
+    width: 1.5px;
+    flex: 1;
+    min-height: 20px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .step-body {
+    padding: 0 0 24px;
+  }
+
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+    line-height: 1.3;
+    padding-top: 6px;
+  }
+
+  .step-desc {
+    color: var(--text2);
+    font-size: 13.5px;
+    line-height: 1.65;
+    margin-bottom: 10px;
+  }
+
+  /* ── DB TAG ── */
+  .db-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .db-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .db-tag.w { border-color: rgba(245,166,35,0.3); color: var(--warn); background: rgba(245,166,35,0.06); }
+
+  /* ── BRANCHES ── */
+  .branches {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .branch {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    font-size: 13px;
+  }
+  .branch-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+  .branch-label.yes { color: var(--success); }
+  .branch-label.no  { color: var(--danger); }
+  .branch-label.alt { color: var(--warn); }
+  .branch-label.info { color: var(--info); }
+  .branch-body { color: var(--text2); font-size: 13px; line-height: 1.5; }
+  .branch-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── NOTE BOX ── */
+  .note {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .note.warn  { background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.25); color: var(--warn); }
+  .note.info  { background: rgba(96,184,245,0.08); border: 1px solid rgba(96,184,245,0.25); color: var(--info); }
+  .note.alert { background: rgba(240,80,80,0.08);  border: 1px solid rgba(240,80,80,0.25);  color: var(--danger); }
+  .note.good  { background: rgba(46,196,122,0.08); border: 1px solid rgba(46,196,122,0.25); color: var(--success); }
+
+  /* ── STATUS BADGES ── */
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .badge.searching  { background: rgba(245,166,35,0.15); color: var(--warn); border: 1px solid rgba(245,166,35,0.3); }
+  .badge.confirmed  { background: rgba(96,184,245,0.15); color: var(--info); border: 1px solid rgba(96,184,245,0.3); }
+  .badge.ongoing    { background: rgba(176,110,245,0.15); color: var(--adm); border: 1px solid rgba(176,110,245,0.3); }
+  .badge.completed  { background: rgba(46,196,122,0.15); color: var(--success); border: 1px solid rgba(46,196,122,0.3); }
+  .badge.cancelled  { background: rgba(240,80,80,0.15); color: var(--danger); border: 1px solid rgba(240,80,80,0.3); }
+  .badge.pending    { background: rgba(245,166,35,0.1); color: var(--warn); border: 1px solid rgba(245,166,35,0.25); }
+  .badge.approved   { background: rgba(46,196,122,0.15); color: var(--success); border: 1px solid rgba(46,196,122,0.3); }
+  .badge.rejected   { background: rgba(240,80,80,0.15); color: var(--danger); border: 1px solid rgba(240,80,80,0.3); }
+  .badge.active     { background: rgba(46,196,160,0.15); color: var(--driv); border: 1px solid rgba(46,196,160,0.3); }
+  .badge.expired    { background: rgba(90,90,114,0.2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── DECISION ── */
+  .decision {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg2);
+    border: 1px dashed var(--muted);
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .decision-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--bg3);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* ── SUB-ITEMS ── */
+  .sub-items {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sub-item {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    padding: 4px 0;
+    border-left: 2px solid var(--border);
+    padding-left: 12px;
+  }
+  .sub-item::before { content: '→'; color: var(--muted); flex-shrink: 0; }
+
+  /* ── DIVIDER STEP (no line after last) ── */
+  .step:last-child .step-line { display: none; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 32px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cancel-flow {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(240,80,80,0.06);
+    border: 1px solid rgba(240,80,80,0.2);
+  }
+  .cancel-flow-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--danger);
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DRIVE<span>U</span> — Control Flow Reference</div>
+  <div class="subtitle">Complete step-by-step flow for Customer · Driver · Admin — mapped to your PostgreSQL schema</div>
+
+  <div class="tabs">
+    <button class="tab active-cust" onclick="show('customer')">👤 Customer</button>
+    <button class="tab" onclick="show('driver')">🚗 Driver</button>
+    <button class="tab" onclick="show('admin')">🛡 Admin</button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     CUSTOMER PANEL
+════════════════════════════════════════════ -->
+<div class="panel active" id="panel-customer">
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cust)"></div> DB write action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> Decision / branch point</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Happy path outcome</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Failure / cancel path</div>
+  </div>
+
+  <div class="section-label">Authentication</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">01</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Open App — Enter Phone Number</div>
+        <div class="step-desc">Customer enters their 10-digit mobile number. The app validates the format client-side before making a server call.</div>
+        <div class="db-row"><span class="db-tag">READ user_phones (check existence)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">02</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">OTP Sent to Phone</div>
+        <div class="step-desc">A 6-digit OTP is generated and sent via SMS. A record is created in <code>otp_requests</code> with an expiry timestamp and a counter.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT otp_requests</span>
+          <span class="db-tag">phone_number, otp_code, expires_at, max_attempts=5</span>
+        </div>
+        <div class="note info">ℹ️ Customer has 5 attempts max. Each wrong entry increments <code>attempt_count</code>. If <code>attempt_count ≥ max_attempts</code>, OTP is locked.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">03</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Customer Enters OTP</div>
+        <div class="step-desc">Customer enters the 6-digit code. System checks <code>otp_code</code>, <code>expires_at</code>, <code>is_used</code>, and <code>attempt_count</code>.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE otp_requests → is_used=true</span></div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">✓ Valid OTP</div>
+            <div class="branch-body">Mark <strong>is_used = true</strong>. Proceed to step 04.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">✗ Wrong / Expired</div>
+            <div class="branch-body">Increment <strong>attempt_count</strong>. Show error. If max attempts hit → lock OTP → customer must request a new one (back to step 02).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">04</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">New or Returning Customer?</div>
+        <div class="decision"><div class="decision-icon">⑆</div>Check if a <code>users</code> record with this phone exists in <code>user_phones</code>.</div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">NEW</div>
+            <div class="branch-body">
+              Create <strong>users</strong> (id=UUID, status_id=active) →
+              Create <strong>user_phones</strong> (is_primary=true, is_verified=true) →
+              Create <strong>customer_profiles</strong> (name, email) →
+              Assign CUSTOMER role via <strong>user_roles</strong> →
+              Land on Home Screen.
+            </div>
+          </div>
+          <div class="branch">
+            <div class="branch-label info">EXISTING</div>
+            <div class="branch-body">Validate <strong>user_statuses</strong> (must be active). If blocked → show error. If active → land on Home Screen.</div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">INSERT users</span>
+          <span class="db-tag w">INSERT user_phones</span>
+          <span class="db-tag w">INSERT customer_profiles</span>
+          <span class="db-tag w">INSERT user_roles</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Booking Creation</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">05</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Home Screen — Select Trip Type</div>
+        <div class="step-desc">Customer picks the kind of trip they want (e.g., Hourly, Outstation, Airport Drop). List is fetched from <code>trip_types</code>.</div>
+        <div class="db-row"><span class="db-tag">READ trip_types</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">06</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Select Vehicle Type & Transmission</div>
+        <div class="step-desc">Customer selects car category (Sedan, SUV, etc.) and transmission preference (Auto / Manual). These determine which drivers are eligible and which pricing config applies.</div>
+        <div class="db-row">
+          <span class="db-tag">READ vehicle_types</span>
+          <span class="db-tag">READ transmission_types</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">07</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Enter Pickup Location</div>
+        <div class="step-desc">Customer searches for pickup address via Google Places. A <code>locations</code> record is created storing address, lat, lng, and Google place_id.</div>
+        <div class="db-row"><span class="db-tag w">INSERT locations (pickup)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">08</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Enter Destination (Optional)</div>
+        <div class="step-desc">For outstation / airport trips, a destination is required. For hourly bookings, it may be skipped — <code>destination_location_id</code> remains NULL.</div>
+        <div class="db-row"><span class="db-tag w">INSERT locations (destination) — optional</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">09</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Select Date, Time & Duration</div>
+        <div class="step-desc">Customer picks <code>scheduled_at</code> (start time). For hourly trips, they also set <code>booked_duration_hours</code>. System checks if the requested slot is in the future.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">10</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Fare Estimate Calculated & Displayed</div>
+        <div class="step-desc">System queries <code>pricing_configs</code> matching <code>city_id + trip_type_id + vehicle_type_id</code>. It then applies tiers from <code>pricing_tiers</code> based on <code>booked_duration_hours</code>. If surge is active (<code>surge_active_from ≤ now ≤ surge_active_to</code>), the <code>surge_multiplier</code> is applied.</div>
+        <div class="db-row">
+          <span class="db-tag">READ pricing_configs</span>
+          <span class="db-tag">READ pricing_tiers</span>
+        </div>
+        <div class="sub-items">
+          <div class="sub-item">Base fare pulled from <code>pricing_configs.base_fare</code></div>
+          <div class="sub-item">Duration fare = tier rate × hours from <code>pricing_tiers</code></div>
+          <div class="sub-item">Platform fee + tax added on top</div>
+          <div class="sub-item">Total fare shown to customer before confirmation</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">11</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Customer Reviews & Confirms Booking</div>
+        <div class="step-desc">Customer sees full booking summary: trip type, vehicle, pickup, destination, scheduled time, fare breakdown. They tap "Confirm Booking".</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT bookings → status: SEARCHING</span>
+          <span class="db-tag">idempotency_key used to prevent duplicate submissions</span>
+        </div>
+        <div class="badges">
+          <span class="badge searching">STATUS → SEARCHING</span>
+        </div>
+        <div class="note warn">⚠️ The <code>idempotency_key</code> on the bookings table ensures that if the customer taps "Confirm" multiple times (network issues), only one booking is ever created.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Driver Matching & Trip Lifecycle</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">12</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">System Searches for Available Driver</div>
+        <div class="step-desc">The system finds online drivers in the same city (<code>driver_profiles.city_id</code>) who serve the pickup zone (<code>driver_zones</code>), support the required vehicle type (<code>driver_vehicle_types</code>) and transmission (<code>driver_transmission_types</code>), and are not already booked (<code>driver_availability</code>).</div>
+        <div class="db-row">
+          <span class="db-tag">READ driver_profiles (is_online=true)</span>
+          <span class="db-tag">READ driver_locations (proximity)</span>
+          <span class="db-tag">READ driver_availability (no conflict)</span>
+          <span class="db-tag w">INSERT booking_requests → status: PENDING</span>
+        </div>
+        <div class="note info">ℹ️ The system sends a request to the <strong>nearest available eligible driver</strong>. The driver must <strong>manually accept or reject</strong> — there is no auto-expiry timer. The request stays PENDING until the driver responds.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">13</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Waiting for Driver Response</div>
+        <div class="step-desc">Customer sees a "Searching for driver…" screen. The booking remains in SEARCHING status while a booking_request is PENDING with a driver.</div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">ACCEPTED</div>
+            <div class="branch-body"><strong>booking_requests</strong> → status: ACCEPTED · <strong>bookings</strong> → status: CONFIRMED · Proceed to step 14.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">REJECTED</div>
+            <div class="branch-body"><strong>booking_requests</strong> → status: REJECTED · System finds the next nearest available driver and sends a new <strong>booking_requests</strong> record (status: PENDING) to them. Loop repeats.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label alt">NO DRIVER FOUND</div>
+            <div class="branch-body">If no eligible drivers exist or all have rejected → <strong>bookings</strong> → status: NO_DRIVER_FOUND · Customer is notified and can try again or modify their booking details.</div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">UPDATE booking_requests → status</span>
+          <span class="db-tag w">UPDATE bookings → status</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">14</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Booking Confirmed — Driver Details Shown</div>
+        <div class="step-desc">Customer sees driver name, photo, average rating, vehicle info, and live ETA. The booking is confirmed.</div>
+        <div class="db-row"><span class="db-tag">READ driver_profiles, driver_locations</span></div>
+        <div class="badges"><span class="badge confirmed">STATUS → CONFIRMED</span></div>
+        <div class="cancel-flow">
+          <div class="cancel-flow-title">⛔ Cancellation Window (Steps 11–17)</div>
+          <div class="step-desc" style="margin-bottom:0;">Customer can cancel at any point before OTP verification. Tapping "Cancel" creates a <strong>cancellation</strong> record (reason, cancelled_by=customer user_id, booking_id), then updates <strong>bookings</strong> → status: CANCELLED, cancelled_at=now().</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">15</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Driver En Route — Live Tracking</div>
+        <div class="step-desc">Customer sees driver's real-time location on a map. Location data is continuously updated in <code>driver_locations</code> by the driver's app.</div>
+        <div class="db-row"><span class="db-tag">READ driver_locations (polling / websocket)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">16</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Driver Arrives at Pickup</div>
+        <div class="step-desc">Driver marks themselves as arrived. A 6-digit OTP is generated and saved to <code>booking_otps</code>. The driver shows this OTP to the customer verbally or on-screen.</div>
+        <div class="db-row"><span class="db-tag w">INSERT booking_otps (otp_code, is_verified=false)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">17</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Customer Verifies OTP — Trip Starts</div>
+        <div class="step-desc">Customer enters the OTP on their app. System validates it against <code>booking_otps.otp_code</code>. On match, OTP is marked verified and the trip begins.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE booking_otps → is_verified=true, verified_at=now()</span>
+          <span class="db-tag w">UPDATE bookings → status: ONGOING</span>
+          <span class="db-tag w">INSERT driver_availability → booked_from=now()</span>
+        </div>
+        <div class="badges"><span class="badge ongoing">STATUS → ONGOING</span></div>
+        <div class="note alert">🔒 Once OTP is verified, cancellation is no longer possible from the customer side.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">18</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Trip in Progress</div>
+        <div class="step-desc">Customer is in the vehicle. Trip duration is tracked. If the trip exceeds <code>booked_duration_hours</code>, overtime is calculated using the overtime rate from <code>pricing_tiers</code>.</div>
+        <div class="sub-items">
+          <div class="sub-item">Overtime hours = actual_duration − booked_duration_hours</div>
+          <div class="sub-item">Overtime fare stored in <code>bookings.overtime_fare</code></div>
+          <div class="sub-item">Total fare updated = base_fare + duration_fare + overtime_fare + tax + platform_fee − discount</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">19</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Trip Ends — Driver Marks Complete</div>
+        <div class="step-desc">Driver taps "End Trip". Booking status is updated to COMPLETED. Driver's availability window is closed. Earnings are credited.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE bookings → status: COMPLETED, drop_at=now()</span>
+          <span class="db-tag w">UPDATE driver_availability → booked_till=now()</span>
+          <span class="db-tag w">UPDATE driver_profiles → total_trips++, total_earnings += fare</span>
+        </div>
+        <div class="badges"><span class="badge completed">STATUS → COMPLETED</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Payment & Post-Trip</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">20</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Payment — Cash or UPI</div>
+        <div class="step-desc">Customer pays the total fare. A <code>booking_payments</code> record is created with the chosen method.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT booking_payments</span>
+          <span class="db-tag">payment_method: CASH or UPI</span>
+          <span class="db-tag">payment_status: SUCCESS / FAILED / PENDING</span>
+        </div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">CASH</div>
+            <div class="branch-body">Customer hands cash to driver. App marks <strong>payment_status = SUCCESS</strong> immediately.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label info">UPI</div>
+            <div class="branch-body">UPI payment flow initiated. On success → <strong>payment_status = SUCCESS, paid_at = now()</strong>. On failure → status = FAILED, customer can retry.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">21</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Rate the Driver</div>
+        <div class="step-desc">Customer gives 1–5 stars and optional comments. A <code>ratings</code> record is created. The driver's <code>avg_rating</code> in <code>driver_profiles</code> is recalculated.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT ratings (booking_id, customer_id, driver_id, stars, comments)</span>
+          <span class="db-tag w">UPDATE driver_profiles.avg_rating (recalculated)</span>
+        </div>
+        <div class="note info">ℹ️ Rating is optional but shown as a prompt. UNIQUE constraint on (booking_id, customer_id) ensures one rating per trip.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num cust">22</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Raise a Support Ticket (Optional)</div>
+        <div class="step-desc">Customer can raise a <code>support_tickets</code> record any time — during or after a booking. They choose a category, describe the issue, and optionally attach a screenshot.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT support_tickets → status: OPEN</span>
+          <span class="db-tag">category: PAYMENT_ISSUE / DRIVER_ISSUE / BOOKING_ISSUE / APP_ISSUE / OTHER</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DRIVER PANEL
+════════════════════════════════════════════ -->
+<div class="panel" id="panel-driver">
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--driv)"></div> DB write action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> Decision / branch point</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Happy path outcome</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Failure / blocked path</div>
+  </div>
+
+  <div class="section-label">Onboarding & Registration</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">01</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Open App — Phone OTP Authentication</div>
+        <div class="step-desc">Same OTP flow as customer. Driver enters phone number → OTP sent (INSERT otp_requests) → Driver enters code → verified.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT otp_requests</span>
+          <span class="db-tag w">UPDATE otp_requests → is_used=true</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">02</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">New Driver Registration — Profile Creation</div>
+        <div class="step-desc">If no user exists for this phone, the app creates a new driver account. Driver selects their city from the available <code>cities</code> list.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT users (status_id=active)</span>
+          <span class="db-tag w">INSERT user_phones (is_primary=true, is_verified=true)</span>
+          <span class="db-tag w">INSERT driver_profiles (city_id, is_online=false, is_verified=false)</span>
+          <span class="db-tag w">INSERT user_roles (DRIVER role)</span>
+        </div>
+        <div class="note warn">⚠️ <code>is_verified = false</code> by default. Driver cannot go online until KYC is approved by admin.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">03</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Select Vehicle Types & Transmission</div>
+        <div class="step-desc">Driver selects which types of vehicles they can drive (Sedan, SUV, etc.) and which transmissions they handle (Automatic, Manual). These determine which bookings they'll be eligible for.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT driver_vehicle_types (driver_id, vehicle_type_id) — for each selection</span>
+          <span class="db-tag w">INSERT driver_transmission_types (driver_id, transmission_type_id)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">04</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Select Service Zones</div>
+        <div class="step-desc">Driver picks which city zones they're willing to serve. Only bookings with pickup locations in these zones will be offered to them.</div>
+        <div class="db-row"><span class="db-tag w">INSERT driver_zones (driver_id, zone_id) — for each zone selected</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">05</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Upload KYC Documents</div>
+        <div class="step-desc">Driver uploads the required identity and licensing documents. Each document is stored in <code>driver_documents</code> with its type and side.</div>
+        <div class="sub-items">
+          <div class="sub-item">Aadhar Card — FRONT side</div>
+          <div class="sub-item">Aadhar Card — BACK side</div>
+          <div class="sub-item">Driving License — FRONT side</div>
+          <div class="sub-item">Driving License — BACK side</div>
+          <div class="sub-item">PAN Card — FULL</div>
+          <div class="sub-item">Profile Photo — FULL (stored as PROFILE_IMAGE type)</div>
+        </div>
+        <div class="db-row"><span class="db-tag w">INSERT driver_documents × 6 (document_type, document_side, file_key, file_provider='S3', is_verified=false)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">06</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">KYC Submitted — Awaiting Admin Review</div>
+        <div class="step-desc">Driver submits for KYC review. A log entry is created marking the review as pending.</div>
+        <div class="db-row"><span class="db-tag w">INSERT driver_kyc_logs → status: pending</span></div>
+        <div class="badges"><span class="badge pending">KYC STATUS → pending</span></div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">APPROVED by Admin</div>
+            <div class="branch-body"><strong>driver_kyc_logs</strong> → status: approved, reviewed_by=admin_user_id, reviewed_at=now() · <strong>driver_profiles.is_verified = true</strong> · Driver can now subscribe to a plan. Proceed to step 07.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">REJECTED by Admin</div>
+            <div class="branch-body"><strong>driver_kyc_logs</strong> → status: rejected, reason=text, reviewed_by, reviewed_at · <strong>driver_profiles.kyc_reapply_after</strong> = future timestamp · Driver sees rejection reason. They may re-upload corrected documents → INSERT new driver_documents → INSERT driver_kyc_logs → status: resubmitted → back to admin review queue.</div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">UPDATE driver_kyc_logs</span>
+          <span class="db-tag w">UPDATE driver_profiles.is_verified</span>
+          <span class="db-tag w">UPDATE driver_profiles.kyc_reapply_after (on rejection)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Subscription & Going Online</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">07</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Browse Subscription Plans</div>
+        <div class="step-desc">KYC-approved driver sees available plans for their city. Each plan shows price, duration (days), and a list of features from <code>plan_features</code>.</div>
+        <div class="db-row">
+          <span class="db-tag">READ subscription_plans (city_id match, is_active=true)</span>
+          <span class="db-tag">READ plan_features + features (for feature list)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">08</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Select Plan & Initiate Payment</div>
+        <div class="step-desc">Driver selects a plan and proceeds to pay via Razorpay. A payment record is created immediately in CREATED status, along with a subscription in PENDING status.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT driver_subscriptions → status: PENDING, payment_id=NULL initially</span>
+          <span class="db-tag w">INSERT payments → status: CREATED, razorpay_order_id set</span>
+        </div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">PAYMENT SUCCESS</div>
+            <div class="branch-body"><strong>payments</strong> → status: SUCCESS, razorpay_payment_id set, paid_at=now() · <strong>driver_subscriptions</strong> → status: ACTIVE, payment_id linked, starts_at=now(), expires_at=now()+duration_days.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">PAYMENT FAILED</div>
+            <div class="branch-body"><strong>payments</strong> → status: FAILED · <strong>driver_subscriptions</strong> remains PENDING · Driver can retry payment. A new <strong>payments</strong> record is created on retry.</div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">UPDATE payments → status: SUCCESS/FAILED</span>
+          <span class="db-tag w">UPDATE driver_subscriptions → status: ACTIVE, payment_id</span>
+        </div>
+        <div class="badges">
+          <span class="badge active">SUBSCRIPTION → ACTIVE</span>
+        </div>
+        <div class="note info">ℹ️ The circular FK between <code>payments</code> and <code>driver_subscriptions</code> is resolved by: first creating the subscription with payment_id=NULL, then creating the payment with subscription_id set, then updating the subscription with payment_id.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">09</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Go Online</div>
+        <div class="step-desc">Driver taps "Go Online". System verifies: (1) is_verified=true, (2) active subscription exists, (3) subscription not expired. If all pass, driver goes online and starts sharing location.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE driver_profiles → is_online=true</span>
+          <span class="db-tag w">INSERT/UPDATE driver_locations → lat, lng, is_online=true, updated_at=now()</span>
+        </div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label no">NOT VERIFIED</div>
+            <div class="branch-body">Blocked. Show "KYC approval pending" message.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">NO ACTIVE SUBSCRIPTION</div>
+            <div class="branch-body">Blocked. Redirect to plan selection (step 07). If subscription expired → status: EXPIRED → prompt renewal.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Receiving & Managing Booking Requests</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">10</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Booking Request Arrives</div>
+        <div class="step-desc">System pushes a booking request to the driver via notification/WebSocket. Driver sees: pickup address, zone, trip type, vehicle type, duration, and estimated fare. The <code>booking_requests</code> record is in PENDING status.</div>
+        <div class="db-row"><span class="db-tag">READ booking_requests (PENDING, driver_id=self)</span></div>
+        <div class="badges"><span class="badge pending">REQUEST STATUS → PENDING</span></div>
+        <div class="note alert">🔴 IMPORTANT: There is NO auto-expiry on booking requests. The driver must manually tap Accept or Reject. The request will remain PENDING until the driver responds.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">11</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Driver Reviews Request — Accepts or Rejects</div>
+        <div class="step-desc">Driver sees full booking details on screen and makes a decision.</div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">✓ ACCEPT</div>
+            <div class="branch-body"><strong>booking_requests</strong> → status: ACCEPTED, responded_at=now() · <strong>bookings</strong> → status: CONFIRMED, driver_id=this driver · Customer is notified of driver name, photo, ETA. Driver receives pickup navigation.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">✗ REJECT</div>
+            <div class="branch-body"><strong>booking_requests</strong> → status: REJECTED, responded_at=now() · Booking remains SEARCHING · System creates a new <strong>booking_requests</strong> for the next available eligible driver. This driver is skipped for this booking.</div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">UPDATE booking_requests → status, responded_at</span>
+          <span class="db-tag w">UPDATE bookings → status: CONFIRMED, driver_id (on accept)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">12</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Navigate to Customer — Share Live Location</div>
+        <div class="step-desc">After accepting, driver navigates to the pickup point. The driver app continuously updates <code>driver_locations</code> so the customer can see real-time ETA on their screen.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE driver_locations → lat, lng, updated_at (continuous updates)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">13</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Arrive at Pickup — Generate OTP</div>
+        <div class="step-desc">Driver taps "I've Arrived". The system generates a 6-digit OTP and stores it in <code>booking_otps</code>. Driver verbally tells the OTP to the customer or shows their screen.</div>
+        <div class="db-row"><span class="db-tag w">INSERT booking_otps (otp_code, is_verified=false)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">14</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Customer Enters OTP — Trip Starts</div>
+        <div class="step-desc">Customer enters OTP on their app. On match, the trip begins. Driver's availability is blocked to prevent double-booking.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE booking_otps → is_verified=true, verified_at=now()</span>
+          <span class="db-tag w">UPDATE bookings → status: ONGOING</span>
+          <span class="db-tag w">INSERT driver_availability → booked_from=now(), driver_id</span>
+        </div>
+        <div class="badges"><span class="badge ongoing">BOOKING → ONGOING</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Trip Completion & Earnings</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">15</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">End Trip — Mark Complete</div>
+        <div class="step-desc">Driver taps "End Trip" at the drop point. The booking is marked COMPLETED. Driver availability window is closed, and earnings are tallied.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE bookings → status: COMPLETED, drop_at=now(), total_fare (final with overtime)</span>
+          <span class="db-tag w">UPDATE driver_availability → booked_till=now()</span>
+          <span class="db-tag w">UPDATE driver_profiles → total_trips++, total_earnings += total_fare</span>
+        </div>
+        <div class="badges"><span class="badge completed">BOOKING → COMPLETED</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">16</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Collect Payment — Customer Pays</div>
+        <div class="step-desc">Driver collects fare (CASH handed to driver, or confirms UPI payment received). The <code>booking_payments</code> record is updated to SUCCESS.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE booking_payments → payment_status: SUCCESS, paid_at=now()</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">17</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Rating Received from Customer</div>
+        <div class="step-desc">Customer rates the driver (1-5 stars). The driver's <code>avg_rating</code> is updated automatically.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE driver_profiles.avg_rating (recalculated from all ratings)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">18</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Go Offline (Optional)</div>
+        <div class="step-desc">Driver can toggle offline at any time when not in a trip. No new requests will be sent while offline.</div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE driver_profiles → is_online=false</span>
+          <span class="db-tag w">UPDATE driver_locations → is_online=false</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num driv">19</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Subscription Renewal</div>
+        <div class="step-desc">When <code>driver_subscriptions.expires_at</code> passes, subscription status moves to EXPIRED. Driver is blocked from going online and is prompted to renew (repeat steps 07–08).</div>
+        <div class="db-row"><span class="db-tag w">UPDATE driver_subscriptions → status: EXPIRED</span></div>
+        <div class="badges"><span class="badge expired">SUBSCRIPTION → EXPIRED</span></div>
+        <div class="note warn">⚠️ Driver is immediately unable to go online once subscription expires. They must purchase a new plan to resume accepting bookings.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     ADMIN PANEL
+════════════════════════════════════════════ -->
+<div class="panel" id="panel-admin">
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--adm)"></div> DB write action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> Decision / review point</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Approval outcome</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Rejection / block action</div>
+  </div>
+
+  <div class="section-label">Admin Authentication</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">01</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Admin Login</div>
+        <div class="step-desc">Admin logs in via secure credentials. System verifies <code>admin_profiles</code> (is_verified=true) and checks that the associated <code>user_roles</code> contains an ADMIN role with sufficient permissions via <code>role_permissions</code>.</div>
+        <div class="db-row">
+          <span class="db-tag">READ admin_profiles (email lookup)</span>
+          <span class="db-tag">READ user_roles → roles → role_permissions → permissions</span>
+          <span class="db-tag w">UPDATE admin_profiles → last_login=now()</span>
+          <span class="db-tag w">INSERT audit_logs (login event)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">KYC Management — Driver Verification</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">02</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View KYC Review Queue</div>
+        <div class="step-desc">Admin sees a list of all drivers with <code>driver_kyc_logs.status = 'pending'</code> or <code>'resubmitted'</code>. Sorted by submission date.</div>
+        <div class="db-row"><span class="db-tag">READ driver_kyc_logs WHERE status IN ('pending','resubmitted')</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">03</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Open Driver Profile — Review Documents</div>
+        <div class="step-desc">Admin opens a driver's submission. They see all uploaded documents from <code>driver_documents</code> — each document rendered from the file_key (S3 or Cloudinary). Admin reviews each one.</div>
+        <div class="db-row">
+          <span class="db-tag">READ driver_documents WHERE driver_id=X</span>
+          <span class="db-tag">READ driver_profiles (city, zones, vehicle types, transmission types)</span>
+        </div>
+        <div class="sub-items">
+          <div class="sub-item">Verify Aadhar front + back match same person</div>
+          <div class="sub-item">Verify Driving License validity and type matches selected vehicle_types</div>
+          <div class="sub-item">Verify PAN card details</div>
+          <div class="sub-item">Confirm profile photo is a clear selfie</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">04</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Approve or Reject KYC</div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label yes">✓ APPROVE</div>
+            <div class="branch-body">
+              INSERT <strong>driver_kyc_logs</strong> → status: approved, reviewed_by=admin_uuid, reviewed_at=now() ·
+              UPDATE <strong>driver_profiles</strong> → is_verified=true ·
+              UPDATE <strong>driver_documents</strong> → is_verified=true (for each doc) ·
+              Driver receives push notification: "KYC Approved! Subscribe to a plan to go online."
+            </div>
+          </div>
+          <div class="branch">
+            <div class="branch-label no">✗ REJECT</div>
+            <div class="branch-body">
+              Admin selects reason (e.g., "Blurry Aadhar back", "Driving license expired") ·
+              INSERT <strong>driver_kyc_logs</strong> → status: rejected, reason=text, reviewed_by, reviewed_at ·
+              UPDATE <strong>driver_profiles</strong> → kyc_reapply_after = now() + cooldown_period ·
+              Driver notified with rejection reason and resubmission instructions.
+            </div>
+          </div>
+        </div>
+        <div class="db-row" style="margin-top:10px">
+          <span class="db-tag w">INSERT driver_kyc_logs</span>
+          <span class="db-tag w">UPDATE driver_profiles.is_verified / .kyc_reapply_after</span>
+          <span class="db-tag w">UPDATE driver_documents.is_verified (on approval)</span>
+          <span class="db-tag w">INSERT audit_logs</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Geography Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">05</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Manage States</div>
+        <div class="step-desc">Admin adds or edits state records. States are the top-level geography unit.</div>
+        <div class="db-row"><span class="db-tag w">INSERT / UPDATE states (name, created_by, updated_by)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">06</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Manage Districts</div>
+        <div class="step-desc">Admin adds districts under a state. <code>state_id</code> is required.</div>
+        <div class="db-row"><span class="db-tag w">INSERT / UPDATE districts (state_id, name)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">07</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Manage Cities</div>
+        <div class="step-desc">Admin adds cities under a district. Cities are the operational unit — all pricing, subscriptions, drivers, and bookings are city-scoped.</div>
+        <div class="db-row"><span class="db-tag w">INSERT / UPDATE cities (district_id, name)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">08</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Manage City Zones</div>
+        <div class="step-desc">Admin defines zones within a city (e.g., "North Zone", "Airport Zone"). Zones control which drivers serve which pickup areas.</div>
+        <div class="db-row"><span class="db-tag w">INSERT / UPDATE city_zones (city_id, name)</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Pricing Configuration</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">09</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Create Pricing Config</div>
+        <div class="step-desc">Admin creates a pricing rule for a specific combination of city + trip type + vehicle type. The UNIQUE constraint ensures no duplicate configs for the same combination + effective date.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT pricing_configs</span>
+          <span class="db-tag">city_id + trip_type_id + vehicle_type_id + effective_from (unique combo)</span>
+          <span class="db-tag">base_fare, min_hours, max_hours, surge_multiplier</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">10</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Add Pricing Tiers to Config</div>
+        <div class="step-desc">For each pricing config, admin adds hour-range tiers. E.g., hours 0–4 at ₹150/hr, hours 4–8 at ₹120/hr. Ranges cannot overlap (UNIQUE on config_id + from_hour + to_hour).</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT pricing_tiers (config_id, from_hour, to_hour, rate_per_hour, label, sort_order)</span>
+        </div>
+        <div class="sub-items">
+          <div class="sub-item">CHECK: to_hour &gt; from_hour enforced by DB constraint</div>
+          <div class="sub-item">UNIQUE: (config_id, from_hour, to_hour) — no overlapping ranges</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">11</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Activate Surge Pricing</div>
+        <div class="step-desc">Admin sets surge window on a pricing config. During this window, all fares for that config are multiplied by <code>surge_multiplier</code>.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE pricing_configs → surge_multiplier, surge_active_from, surge_active_to</span></div>
+        <div class="note warn">⚠️ DB CHECK constraint enforces: <code>surge_active_to IS NULL OR surge_active_to &gt; surge_active_from</code>. Surge ≥ 1.0 (never discounts).</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Subscription Plan Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">12</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Create Subscription Plan</div>
+        <div class="step-desc">Admin creates a driver subscription plan for a city. Plan has a name, price, and validity in days.</div>
+        <div class="db-row"><span class="db-tag w">INSERT subscription_plans (city_id, name, price, duration_days, is_active=true)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">13</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Add Features to Plan</div>
+        <div class="step-desc">Admin maps features (from the <code>features</code> master table) to the plan. Each feature gets a value (e.g., "Unlimited rides", "10 bookings/day", "Priority support").</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT features (code, name, description_text) — if new feature</span>
+          <span class="db-tag w">INSERT plan_features (plan_id, feature_id, value)</span>
+        </div>
+        <div class="note info">ℹ️ UNIQUE constraint on (plan_id, feature_id) ensures no duplicate feature per plan.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">14</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Activate or Deactivate Plan</div>
+        <div class="step-desc">Admin can toggle a plan's visibility. Deactivated plans (<code>is_active=false</code>) are hidden from drivers but existing active subscriptions continue until expiry.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE subscription_plans → is_active = true/false</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">User Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">15</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View & Search All Users</div>
+        <div class="step-desc">Admin can search users (customers, drivers, admins) by phone, name, or email. Results show status, roles, and profile type.</div>
+        <div class="db-row">
+          <span class="db-tag">READ users + user_phones + customer_profiles / driver_profiles</span>
+          <span class="db-tag">READ user_roles + roles (to show assigned roles)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">16</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Block or Activate a User</div>
+        <div class="step-desc">Admin changes a user's status. Blocked users cannot log in. Active users can use the platform normally.</div>
+        <div class="db-row"><span class="db-tag w">UPDATE users → status_id (lookup user_statuses table for appropriate status code)</span></div>
+        <div class="branches">
+          <div class="branch">
+            <div class="branch-label no">BLOCK USER</div>
+            <div class="branch-body">Set status_id to "blocked" status. If the user is a driver currently online, they are forced offline: UPDATE <strong>driver_profiles.is_online = false</strong>, UPDATE <strong>driver_locations.is_online = false</strong>.</div>
+          </div>
+          <div class="branch">
+            <div class="branch-label yes">ACTIVATE USER</div>
+            <div class="branch-body">Set status_id to "active" status. User can log in immediately.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">17</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Assign or Remove Roles</div>
+        <div class="step-desc">Admin assigns roles (CUSTOMER, DRIVER, ADMIN, SUPPORT_AGENT, etc.) to users. A UNIQUE constraint prevents duplicate role assignments.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT user_roles (user_id, role_id, assigned_at)</span>
+          <span class="db-tag w">DELETE user_roles (to remove a role)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Booking Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">18</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View All Bookings</div>
+        <div class="step-desc">Admin views a full list of bookings with rich filters: city, status, trip type, vehicle type, date range, customer or driver name.</div>
+        <div class="db-row"><span class="db-tag">READ bookings + customer_profiles + driver_profiles + trip_types + vehicle_types + cities</span></div>
+        <div class="badges">
+          <span class="badge searching">SEARCHING</span>
+          <span class="badge confirmed">CONFIRMED</span>
+          <span class="badge ongoing">ONGOING</span>
+          <span class="badge completed">COMPLETED</span>
+          <span class="badge cancelled">CANCELLED</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">19</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View Booking Detail</div>
+        <div class="step-desc">Admin opens a booking to see the complete picture: fare breakdown, driver request history, OTP verification log, payment status, cancellation details, and rating.</div>
+        <div class="db-row">
+          <span class="db-tag">READ bookings (all fare fields)</span>
+          <span class="db-tag">READ booking_requests (full driver request history for this booking)</span>
+          <span class="db-tag">READ booking_otps</span>
+          <span class="db-tag">READ booking_payments</span>
+          <span class="db-tag">READ cancellation (if cancelled)</span>
+          <span class="db-tag">READ ratings (if rated)</span>
+          <span class="db-tag">READ locations (pickup + destination)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Support Ticket Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">20</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View Support Queue</div>
+        <div class="step-desc">Admin/support agent sees tickets filterable by status, category, city, and date. Default view shows OPEN tickets sorted by creation time (oldest first).</div>
+        <div class="db-row"><span class="db-tag">READ support_tickets WHERE status='OPEN' ORDER BY created_at ASC</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">21</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Open Ticket — Investigate</div>
+        <div class="step-desc">Agent opens a ticket. They see the customer's description, screenshot (if any), and the linked booking (if relevant). They can review the booking's full timeline to investigate the issue.</div>
+        <div class="db-row">
+          <span class="db-tag">READ support_tickets + customer_profiles</span>
+          <span class="db-tag">READ bookings (via booking_id FK, if attached)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">22</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Update Ticket Status</div>
+        <div class="step-desc">Agent moves the ticket through the resolution workflow.</div>
+        <div class="sub-items">
+          <div class="sub-item">OPEN → IN_PROGRESS (agent starts working on it)</div>
+          <div class="sub-item">IN_PROGRESS → RESOLVED (issue resolved, resolved_by + resolved_at set)</div>
+          <div class="sub-item">RESOLVED → CLOSED (customer acknowledged or auto-closed after 48h)</div>
+        </div>
+        <div class="db-row">
+          <span class="db-tag w">UPDATE support_tickets → status, resolved_by=admin_uuid, resolved_at=now()</span>
+          <span class="db-tag w">INSERT audit_logs</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Roles & Permissions Management</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">23</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Create & Manage Roles</div>
+        <div class="step-desc">Admin creates named roles (e.g., SUPER_ADMIN, SUPPORT_AGENT, CITY_MANAGER). Each role is described and assigned a set of permissions.</div>
+        <div class="db-row"><span class="db-tag w">INSERT roles (name, description)</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">24</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">Create Permissions & Assign to Roles</div>
+        <div class="step-desc">Admin creates named permissions (e.g., APPROVE_KYC, VIEW_BOOKINGS, MANAGE_PRICING, RESOLVE_TICKETS). Then maps them to roles via <code>role_permissions</code>.</div>
+        <div class="db-row">
+          <span class="db-tag w">INSERT permissions (name, description)</span>
+          <span class="db-tag w">INSERT role_permissions (role_id, permission_id)</span>
+          <span class="db-tag w">DELETE role_permissions (to revoke)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Audit & Monitoring</div>
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">25</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View Audit Logs</div>
+        <div class="step-desc">Admin can view every API call made to the system. Each log entry shows who called which endpoint, their IP, request payload, response status, and how long it took. Useful for debugging, security monitoring, and compliance.</div>
+        <div class="db-row">
+          <span class="db-tag">READ audit_logs</span>
+          <span class="db-tag">Filters: user_id, api_route, response_status, ip_address, date range</span>
+        </div>
+        <div class="sub-items">
+          <div class="sub-item">All KYC decisions written to audit_logs (reviewed_by, action, timestamp)</div>
+          <div class="sub-item">All pricing changes logged</div>
+          <div class="sub-item">All user status changes logged</div>
+          <div class="sub-item">All role/permission changes logged</div>
+          <div class="sub-item">Failed API calls (4xx/5xx) surfaced with error_message</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-left"><div class="step-num adm">26</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <div class="step-title">View Driver Subscription & Payment Reports</div>
+        <div class="step-desc">Admin reviews active subscriptions, expiring soon subscriptions, and all payment transactions. Can identify failed payment patterns or subscription churn by city.</div>
+        <div class="db-row">
+          <span class="db-tag">READ driver_subscriptions (status, expires_at)</span>
+          <span class="db-tag">READ payments (status, amount, razorpay_payment_id)</span>
+          <span class="db-tag">JOIN driver_profiles + cities</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const panels = ['customer','driver','admin'];
+  const tabs = document.querySelectorAll('.tab');
+  const colorMap = { customer: 'active-cust', driver: 'active-driv', admin: 'active-adm' };
+
+  function show(which) {
+    panels.forEach(p => {
+      document.getElementById('panel-'+p).classList.toggle('active', p === which);
+    });
+    tabs.forEach((t, i) => {
+      t.className = 'tab';
+      if (panels[i] === which) t.classList.add(colorMap[which]);
+    });
+  }
+</script>
+</body>
+</html>
